@@ -1,6 +1,8 @@
 import os
 import shutil
 
+import torch
+
 from src.utils.preprocess import CropAndExtract
 from src.test_audio2coeff import Audio2Coeff  
 from src.facerender.animate import AnimateFromCoeff
@@ -33,15 +35,19 @@ class SadTalkerInfer():
         self.audio_to_coeff = Audio2Coeff(sadtalker_paths,  device) 
         self.animate_from_coeff = AnimateFromCoeff(sadtalker_paths, device)
     
-    def infer(self, driven_audio, source_image, result_dir, ref_eyeblink=None, 
+    @torch.no_grad()
+    def infer(self, driven_audio, image_source, image_path, result_dir, 
+              video_as_source=False, ref_eyeblink=None, 
               ref_pose=None, pose_style=0, batch_size=2, expression_scale=1, 
               input_yaw=None, input_pitch=None, input_roll=None, enhancer=False, 
               background_enhancer=None, still=False):
         '''
         Args:
             driven_audio: path to the audio file
-            source_image: path to the source image
+            image_source: The source of image. It could be image or video
+            image_path: Path to the image to save/load source image
             result_dir: path to the result directory
+            video_as_source: Whether to use the middle frame from video as the source image
             ref_eyeblink: path to the reference eyeblink video
             ref_pose: path to the reference pose video
             pose_style: input pose style from [0, 46)
@@ -60,7 +66,8 @@ class SadTalkerInfer():
         
         print('3DMM Extraction for source image')
         first_coeff_path, crop_pic_path, crop_info =  self.preprocess_model.generate(
-            source_image, first_frame_dir, self.preprocess, 
+            image_source, first_frame_dir, self.preprocess, 
+            video_as_source=video_as_source, video_image_path=image_path,
             source_image_flag=True, pic_size=self.size
         )
         
@@ -117,7 +124,7 @@ class SadTalkerInfer():
         )
         
         result = self.animate_from_coeff.generate(
-            data, result_dir, source_image, crop_info, 
+            data, result_dir, image_path, crop_info, 
             enhancer=enhancer, background_enhancer=background_enhancer, 
             preprocess=self.preprocess, img_size=self.size
         )

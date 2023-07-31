@@ -60,7 +60,7 @@ class CropAndExtract():
         self.lm3d_std = load_lm3d(sadtalker_path['dir_of_BFM_fitting'])
         self.device = device
     
-    def generate(self, input_path, save_dir, crop_or_resize='crop', source_image_flag=False, pic_size=256):
+    def generate(self, input_path, save_dir, crop_or_resize='crop', video_image_path=None, video_as_source=False, source_image_flag=False, pic_size=256):
 
         pic_name = os.path.splitext(os.path.split(input_path)[-1])[0]  
 
@@ -88,6 +88,15 @@ class CropAndExtract():
                 full_frames.append(frame) 
                 if source_image_flag:
                     break
+        
+        # If video is provided instead of image, get the middle frame and use it 
+        # as the source image for animation
+        if video_as_source:
+            middle_frame_index = len(full_frames) // 2
+            print("Using middle frame {} as a source image".format(middle_frame_index))
+            full_frames = full_frames[middle_frame_index:middle_frame_index+1]
+            assert video_image_path is not None
+            cv2.imwrite(video_image_path, full_frames[0])
 
         x_full_frames= [cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  for frame in full_frames] 
 
