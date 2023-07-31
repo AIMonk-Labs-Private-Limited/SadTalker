@@ -68,7 +68,7 @@ class SadTalkerInfer():
         first_coeff_path, crop_pic_path, crop_info =  self.preprocess_model.generate(
             image_source, first_frame_dir, self.preprocess, 
             video_as_source=video_as_source, video_image_path=image_path,
-            source_image_flag=True, pic_size=self.size
+            source_image_flag=False, pic_size=self.size
         )
         
         if first_coeff_path is None:
