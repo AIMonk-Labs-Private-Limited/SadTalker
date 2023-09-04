@@ -134,7 +134,7 @@ def make_animation(source_image, source_semantics, target_semantics,
             kp_driving_new = keypoint_transformation(kp_canonical_new, he_driving, wo_exp=True)
             out = generator(source_image_new, kp_source=kp_source_new, kp_driving=kp_driving_new)
             '''
-            predictions.append(out['prediction'])
+            predictions.append(out['prediction'].cpu())
         predictions_ts = torch.stack(predictions, dim=1)
     return predictions_ts
 
