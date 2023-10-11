@@ -55,6 +55,21 @@ def paste_pic(video_path, pic_path, crop_info, new_audio_path, full_video_path, 
 
     tmp_path = str(uuid.uuid4())+'.mp4'
     out_tmp = cv2.VideoWriter(tmp_path, cv2.VideoWriter_fourcc(*'avc1'), fps, (frame_w, frame_h))
+    
+    if ox2 > full_img.shape[1]:
+        print(f"Crop x2 coordinates out of bounds: {ox2} > {full_img.shape[1]}")
+        ox2 = full_img.shape[1]
+    if ox1 < 0:
+        print(f"Crop x1 coordinates out of bounds: {ox1} < 0")
+        ox1 = 0
+
+    if oy2 > full_img.shape[0]:
+        print(f"Crop y2 coordinates out of bounds: {oy2} > {full_img.shape[0]}")
+        oy2 = full_img.shape[0]
+    if oy1 < 0:
+        print(f"Crop y1 coordinates out of bounds: {oy1} < 0")
+        oy1 = 0
+
     for crop_frame in tqdm(crop_frames, 'seamlessClone:'):
         p = cv2.resize(crop_frame.astype(np.uint8), (ox2-ox1, oy2 - oy1)) 
 
