@@ -48,6 +48,15 @@ class Audio2Coeff():
                 load_cpk(sadtalker_path['audio2pose_checkpoint'], model=self.audio2pose_model, device=device)
         except:
             raise Exception("Failed in loading audio2pose_checkpoint")
+        
+        #give path for presaved_poses
+        self.pre_saved={
+            0:"saved_poses/yt_pose1/yt_pose1.mat",
+            1:"saved_poses/yt_pose2_trimmed/yt_pose2_trimmed.mat",
+            2:"saved_poses/yt_pose3_trimmed/yt_pose3_trimmed.mat",
+            3:"saved_poses/yt_pose4_trimmed/yt_pose4_trimmed.mat"
+
+        }
 
         # load audio2exp_model
         netG = SimpleWrapperV2()
@@ -70,6 +79,10 @@ class Audio2Coeff():
         self.audio2exp_model.eval()
  
         self.device = device
+    
+    
+    def get_saved_poses(self,pose_style):
+        return self.pre_saved[pose_style]
 
     def generate(self, batch, coeff_save_dir, pose_style, ref_pose_coeff_path=None):
 
@@ -96,6 +109,10 @@ class Audio2Coeff():
 
             coeffs_pred_numpy = coeffs_pred[0].clone().detach().cpu().numpy() 
 
+            #Using initial pose_style for saved 3dmm parameters
+            if pose_style<len(self.pre_saved):
+                ref_pose_coeff_path=self.get_saved_poses(pose_style)
+            
             if ref_pose_coeff_path is not None: 
                  coeffs_pred_numpy = self.using_refpose(coeffs_pred_numpy, ref_pose_coeff_path)
         
