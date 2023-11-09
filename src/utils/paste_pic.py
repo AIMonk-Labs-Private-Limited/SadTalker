@@ -1,9 +1,12 @@
 import cv2, os
+import concurrent.futures
+from multiprocessing import cpu_count
 import numpy as np
 from tqdm import tqdm
 import uuid
 
 from src.utils.videoio import save_video_with_watermark 
+CPUS = cpu_count()
 
 def paste_pic(video_path, pic_path, crop_info, new_audio_path, full_video_path, extended_crop=False):
 
@@ -70,12 +73,27 @@ def paste_pic(video_path, pic_path, crop_info, new_audio_path, full_video_path, 
         print(f"Crop y1 coordinates out of bounds: {oy1} < 0")
         oy1 = 0
 
-    for crop_frame in tqdm(crop_frames, 'seamlessClone:'):
+    def seamless_clone_frame(crop_frame):
         p = cv2.resize(crop_frame.astype(np.uint8), (ox2-ox1, oy2 - oy1)) 
 
         mask = 255*np.ones(p.shape, p.dtype)
         location = ((ox1+ox2) // 2, (oy1+oy2) // 2)
         gen_img = cv2.seamlessClone(p, full_img, mask, location, cv2.NORMAL_CLONE)
+        #print('finished generated img')
+        return gen_img
+    chunksize = len(crop_frames) // CPUS
+    with concurrent.futures.ThreadPoolExecutor(max_workers=CPUS) as executor:
+        temp_gen_imgs = list(executor.map(seamless_clone_frame, crop_frames, chunksize=chunksize))
+
+    # for crop_frame in tqdm(crop_frames, 'seamlessClone:'):
+    #     p = cv2.resize(crop_frame.astype(np.uint8), (ox2-ox1, oy2 - oy1)) 
+
+    #     mask = 255*np.ones(p.shape, p.dtype)
+    #     location = ((ox1+ox2) // 2, (oy1+oy2) // 2)
+    #     gen_img = cv2.seamlessClone(p, full_img, mask, location, cv2.NORMAL_CLONE)
+    #     out_tmp.write(gen_img)
+
+    for gen_img in temp_gen_imgs:
         out_tmp.write(gen_img)
 
     out_tmp.release()
