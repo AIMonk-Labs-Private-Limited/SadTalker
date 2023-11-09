@@ -179,30 +179,34 @@ class AnimateFromCoeff():
             roll_c_seq = None
 
         frame_num = x['frame_num']
+        original_size = crop_info[0]
+        video_name = x['video_name']  + '.mp4'
 
-        predictions_video = make_animation(source_image, source_semantics, target_semantics,
+        path = make_animation(source_image, source_semantics, target_semantics,
                                         self.generator, self.kp_extractor, self.he_estimator, self.mapping, 
+                                        img_size, original_size, video_save_dir, video_name, frame_num,
                                         yaw_c_seq, pitch_c_seq, roll_c_seq, use_exp = True)
 
-        predictions_video = predictions_video.reshape((-1,)+predictions_video.shape[2:])
-        predictions_video = predictions_video[:frame_num]
+        # removing this portion as chunking logic accomodate it there inside make_animation()
+        # predictions_video = predictions_video.reshape((-1,)+predictions_video.shape[2:])
+        # predictions_video = predictions_video[:frame_num]
 
-        video = []
-        for idx in range(predictions_video.shape[0]):
-            image = predictions_video[idx]
-            image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
-            video.append(image)
-        result = img_as_ubyte(video)
+        # video = []
+        # for idx in range(predictions_video.shape[0]):
+        #     image = predictions_video[idx]
+        #     image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
+        #     video.append(image)
+        # result = img_as_ubyte(video)
 
-        ### the generated video is 256x256, so we keep the aspect ratio, 
-        original_size = crop_info[0]
-        if original_size:
-            result = [ cv2.resize(result_i,(img_size, int(img_size * original_size[1]/original_size[0]) )) for result_i in result ]
+        # ### the generated video is 256x256, so we keep the aspect ratio, 
+        # original_size = crop_info[0]
+        # if original_size:
+        #     result = [ cv2.resize(result_i,(img_size, int(img_size * original_size[1]/original_size[0]) )) for result_i in result ]
         
-        video_name = x['video_name']  + '.mp4'
-        path = os.path.join(video_save_dir, 'temp_'+video_name)
+        # video_name = x['video_name']  + '.mp4'
+        # path = os.path.join(video_save_dir, 'temp_'+video_name)
         
-        imageio.mimsave(path, result,  fps=float(25))
+        # imageio.mimsave(path, result,  fps=float(25))
 
         av_path = os.path.join(video_save_dir, video_name)
         return_path = av_path 
@@ -219,6 +223,7 @@ class AnimateFromCoeff():
         word = word1[start_time:end_time]
         word.export(new_audio_path, format="wav")
 
+        print("Concatenated chunk path: ", path)
         save_video_with_watermark(path, new_audio_path, av_path, watermark= False)
         print(f'The generated video is named {video_save_dir}/{video_name}') 
 

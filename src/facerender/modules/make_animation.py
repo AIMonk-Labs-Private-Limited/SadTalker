@@ -1,8 +1,17 @@
+import os
+from math import ceil
 from scipy.spatial import ConvexHull
 import torch
 import torch.nn.functional as F
+import cv2
+import imageio
+import imageio_ffmpeg
 import numpy as np
 from tqdm import tqdm 
+from skimage import img_as_ubyte
+
+# 2min 25fps video chunk size -> 2 * 60 (seconds) * 25 frames
+RENDERING_CHUNK_SIZE = 2 * 60 * 25
 
 def normalize_kp(kp_source, kp_driving, kp_driving_initial, adapt_movement_scale=False,
                  use_relative_movement=False, use_relative_jacobian=False):
@@ -97,46 +106,119 @@ def keypoint_transformation(kp_canonical, he, wo_exp=False):
 
     return {'value': kp_transformed}
 
+def create_semantic_chunks(target_semantics, chunk_size=RENDERING_CHUNK_SIZE):
+    # target_semantics.shape -> (batch_size, frame_length, ?, ?)
+    # total frames = batch_size * frame_length
+    # chunk size is 2 mins -> 2 * 60 seconds with 25 fps
+    total_frames = target_semantics.shape[1] * target_semantics.shape[0]
+    no_chunks = ceil(total_frames / chunk_size)  # ceil division
+    # adding 1 more chunk if there is any residual frames remaining
+    # if total_frames % chunk_size:
+    #     no_chunks += 1
+    # we reduce chunk size because, in reality each sample would have 
+    # batch_size number of frames, not 1
+    reduced_chunk_size = ceil(chunk_size / target_semantics.shape[0])
+    print(f"Number of chunks {no_chunks} with chunk size {reduced_chunk_size}")
 
+    for i in range(0, no_chunks):
+        start = i*reduced_chunk_size
+        end = (i+1)*reduced_chunk_size
+        # for last chunk, we might have less frames
+        end = end if end < total_frames else total_frames
+        yield target_semantics[:, start:end]
+
+def save_chunk_video(predictions, chunk_index, video_save_dir, video_name, img_size, original_size):
+    predictions_ts = torch.stack(predictions, dim=1)
+    predictions_video = predictions_ts.reshape((-1,)+predictions_ts.shape[2:])
+    
+    video = []
+    video_name = f"temp_{chunk_index}_" + video_name
+    video_path = os.path.join(video_save_dir, video_name)
+    for idx in range(predictions_video.shape[0]):
+        image = predictions_video[idx]
+        image = np.transpose(image.data.cpu().numpy(), [1, 2, 0]).astype(np.float32)
+        image = img_as_ubyte(image)
+        image =  cv2.resize(image, (img_size, int(img_size * original_size[1]/original_size[0]) ))
+        video.append(image)
+        
+    imageio.mimsave(video_path, video,  fps=float(25))
+    
+    return video_path
+
+def concat_chunks(chunk_videos, output_dir, video_name, total_frames, fps=25):
+    output_video_path = os.path.join(output_dir, "temp_" + video_name)
+    output_video = imageio.get_writer(output_video_path, fps=fps)
+    
+    frame_count = 0
+    frame_count_exceed = False
+    for chunk_video in chunk_videos:
+        input_video = imageio.get_reader(chunk_video)
+        for frame in input_video:
+            # we only consider first N frames required according to audio
+            # if it exceeds stop adding frames in it
+            if frame_count > total_frames:
+                frame_count_exceed = True
+                break
+            output_video.append_data(frame)
+            frame_count += 1
+            
+        if frame_count_exceed:
+            break
+            
+    output_video.close()
+    
+    return output_video_path
 
 def make_animation(source_image, source_semantics, target_semantics,
                             generator, kp_detector, he_estimator, mapping, 
+                            img_size, original_size, video_save_dir, video_name,
+                            frame_num,
                             yaw_c_seq=None, pitch_c_seq=None, roll_c_seq=None,
                             use_exp=True, use_half=False):
     with torch.no_grad():
-        predictions = []
+        chunk_videos = []
 
         kp_canonical = kp_detector(source_image)
         he_source = mapping(source_semantics)
         kp_source = keypoint_transformation(kp_canonical, he_source)
-    
-        for frame_idx in tqdm(range(target_semantics.shape[1]), 'Face Renderer:'):
-            # still check the dimension
-            # print(target_semantics.shape, source_semantics.shape)
-            target_semantics_frame = target_semantics[:, frame_idx]
-            he_driving = mapping(target_semantics_frame)
-            if yaw_c_seq is not None:
-                he_driving['yaw_in'] = yaw_c_seq[:, frame_idx]
-            if pitch_c_seq is not None:
-                he_driving['pitch_in'] = pitch_c_seq[:, frame_idx] 
-            if roll_c_seq is not None:
-                he_driving['roll_in'] = roll_c_seq[:, frame_idx] 
-            
-            kp_driving = keypoint_transformation(kp_canonical, he_driving)
-                
-            kp_norm = kp_driving
-            out = generator(source_image, kp_source=kp_source, kp_driving=kp_norm)
-            '''
-            source_image_new = out['prediction'].squeeze(1)
-            kp_canonical_new =  kp_detector(source_image_new)
-            he_source_new = he_estimator(source_image_new) 
-            kp_source_new = keypoint_transformation(kp_canonical_new, he_source_new, wo_exp=True)
-            kp_driving_new = keypoint_transformation(kp_canonical_new, he_driving, wo_exp=True)
-            out = generator(source_image_new, kp_source=kp_source_new, kp_driving=kp_driving_new)
-            '''
-            predictions.append(out['prediction'].cpu())
-        predictions_ts = torch.stack(predictions, dim=1)
-    return predictions_ts
+
+        for chunk_index, target_semantics_chunk in enumerate(create_semantic_chunks(target_semantics)):
+            predictions = []
+            print("Procssing Chunk: ", chunk_index)
+            for frame_idx in tqdm(range(target_semantics_chunk.shape[1]), 'Face Renderer:'):
+                # still check the dimension
+                # print(target_semantics.shape, source_semantics.shape)
+                target_semantics_frame = target_semantics_chunk[:, frame_idx]
+                he_driving = mapping(target_semantics_frame)
+                if yaw_c_seq is not None:
+                    he_driving['yaw_in'] = yaw_c_seq[:, frame_idx]
+                if pitch_c_seq is not None:
+                    he_driving['pitch_in'] = pitch_c_seq[:, frame_idx] 
+                if roll_c_seq is not None:
+                    he_driving['roll_in'] = roll_c_seq[:, frame_idx] 
+
+                kp_driving = keypoint_transformation(kp_canonical, he_driving)
+
+                kp_norm = kp_driving
+                out = generator(source_image, kp_source=kp_source, kp_driving=kp_norm)
+                '''
+                source_image_new = out['prediction'].squeeze(1)
+                kp_canonical_new =  kp_detector(source_image_new)
+                he_source_new = he_estimator(source_image_new) 
+                kp_source_new = keypoint_transformation(kp_canonical_new, he_source_new, wo_exp=True)
+                kp_driving_new = keypoint_transformation(kp_canonical_new, he_driving, wo_exp=True)
+                out = generator(source_image_new, kp_source=kp_source_new, kp_driving=kp_driving_new)
+                '''
+                predictions.append(out['prediction'].cpu())
+
+            chunk_videos.append(
+                save_chunk_video(predictions, chunk_index, video_save_dir, 
+                                 video_name, img_size, original_size)
+            )
+        print("Concating chunks...")
+        video_path = concat_chunks(chunk_videos, video_save_dir, video_name, frame_num)
+        #import pdb;pdb.set_trace()
+    return video_path
 
 class AnimateModel(torch.nn.Module):
     """
