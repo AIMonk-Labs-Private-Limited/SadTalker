@@ -1,4 +1,5 @@
 import os 
+from pathlib import Path
 import torch
 import numpy as np
 from scipy.io import savemat, loadmat
@@ -12,6 +13,8 @@ from src.audio2pose_models.audio2pose import Audio2Pose
 from src.audio2exp_models.networks import SimpleWrapperV2 
 from src.audio2exp_models.audio2exp import Audio2Exp
 from src.utils.safetensor_helper import load_x_from_safetensor  
+
+GLBL_PATH_SAVED_POSES = str(Path(os.path.dirname(os.path.abspath(__file__))).parent)
 
 def load_cpk(checkpoint_path, model=None, optimizer=None, device="cpu"):
     checkpoint = torch.load(checkpoint_path, map_location=torch.device(device))
@@ -51,10 +54,10 @@ class Audio2Coeff():
         
         #give path for presaved_poses
         self.pre_saved={
-            0:"saved_poses/yt_pose1/yt_pose1.mat",
-            1:"saved_poses/yt_pose2_trimmed/yt_pose2_trimmed.mat",
-            2:"saved_poses/yt_pose3_trimmed/yt_pose3_trimmed.mat",
-            3:"saved_poses/yt_pose4_trimmed/yt_pose4_trimmed.mat"
+            0:os.path.join(GLBL_PATH_SAVED_POSES,"saved_poses/yt_pose1/yt_pose1.mat"),
+            1:os.path.join(GLBL_PATH_SAVED_POSES,"saved_poses/yt_pose2_trimmed/yt_pose2_trimmed.mat"),
+            2:os.path.join(GLBL_PATH_SAVED_POSES,"saved_poses/yt_pose3_trimmed/yt_pose3_trimmed.mat"),
+            3:os.path.join(GLBL_PATH_SAVED_POSES,"saved_poses/yt_pose4_trimmed/yt_pose4_trimmed.mat")
 
         }
 

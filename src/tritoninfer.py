@@ -10,6 +10,8 @@ from src.generate_batch import get_data
 from src.generate_facerender_batch import get_facerender_data
 from src.utils.init_path import init_path
 
+FACERENDER_BATCH_SIZE = 2
+
 class SadTalkerInfer():
     
     def __init__(self, config_dir, checkpoint_dir, size=256, preprocess="full",  
@@ -38,7 +40,7 @@ class SadTalkerInfer():
     @torch.no_grad()
     def infer(self, driven_audio, image_source, image_path, result_dir, 
               video_as_source=False, ref_eyeblink=None, 
-              ref_pose=None, pose_style=0, batch_size=2, expression_scale=1, 
+              ref_pose=None, pose_style=0, batch_size=FACERENDER_BATCH_SIZE, expression_scale=1, 
               input_yaw=None, input_pitch=None, input_roll=None, enhancer=False, 
               background_enhancer=None, still=False):
         '''
