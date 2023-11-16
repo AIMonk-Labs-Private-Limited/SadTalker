@@ -62,6 +62,7 @@ class SadTalkerInfer():
             
             img_temp=cv2.imread(image_source)
             img_temp=resize_aspect_ratio(img_temp)
+            print("image resized to: ",img_temp.shape)
             cv2.imwrite(image_source,img_temp)
             print("Temp image created from image",image_source)
             return image_source
@@ -83,6 +84,7 @@ class SadTalkerInfer():
             full_img=resize_aspect_ratio(frame)
             frame_h = full_img.shape[0]
             frame_w = full_img.shape[1]
+            print("video frame resized to: ",(frame_w,frame_h))
             video_stream_2 = cv2.VideoCapture(image_source)
             fps = video_stream_2.get(cv2.CAP_PROP_FPS)
             out_tmp = cv2.VideoWriter(file_path, cv2.VideoWriter_fourcc(*'avc1'), fps, (frame_w, frame_h))
