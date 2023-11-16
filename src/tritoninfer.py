@@ -98,32 +98,7 @@ class SadTalkerInfer():
             print("Temp video created from video",file_path)
             out_tmp.release()
             return file_path
-
-class SadTalkerInfer():
-    
-    def __init__(self, config_dir, checkpoint_dir, size=256, preprocess="full",  
-                 old_version=True, device="cuda:0"):
-        '''
-            config_dir: path to the config directory
-            checkpoint_dir: path to the checkpoint directory
-            size: the image size of the facerender
-            preprocess: the preprocess method of the input image.
-                Choose from ['crop', 'extcrop', 'resize', 'full', 'extfull']
-            old_version: use the pth other than safetensor version
-            device: device to run the model on
-        '''
-        self.size = size
-        self.device = device
-        self.preprocess = preprocess
-        sadtalker_paths = init_path(
-            checkpoint_dir, config_dir, size, old_version, preprocess
-        )
         
-        #init model
-        self.preprocess_model = CropAndExtract(sadtalker_paths, device)
-        self.audio_to_coeff = Audio2Coeff(sadtalker_paths,  device) 
-        self.animate_from_coeff = AnimateFromCoeff(sadtalker_paths, device)
-    
     @torch.no_grad()
     def infer(self, driven_audio, image_source, image_path, result_dir, 
               video_as_source=False, ref_eyeblink=None, 
