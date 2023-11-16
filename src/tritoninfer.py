@@ -9,8 +9,93 @@ from src.facerender.animate import AnimateFromCoeff
 from src.generate_batch import get_data
 from src.generate_facerender_batch import get_facerender_data
 from src.utils.init_path import init_path
+import cv2
 
 FACERENDER_BATCH_SIZE = 2
+
+GLBL_RESIZE_ASPECT_RATIO_DIMS=1024
+
+## resize function
+def resize_aspect_ratio(img_frame):
+    h,w=img_frame.shape[:2]
+    large_dims=max(h,w)
+    if large_dims>GLBL_RESIZE_ASPECT_RATIO_DIMS:
+        ratio=GLBL_RESIZE_ASPECT_RATIO_DIMS/large_dims
+        new_h,new_w=(GLBL_RESIZE_ASPECT_RATIO_DIMS,int(w*ratio)) if large_dims==h else (int(h*ratio),GLBL_RESIZE_ASPECT_RATIO_DIMS)
+        return cv2.resize(img_frame,(int(new_w),int(new_h)),interpolation=cv2.INTER_LINEAR)
+    else:
+        return img_frame
+
+class SadTalkerInfer():
+    
+    def __init__(self, config_dir, checkpoint_dir, size=256, preprocess="full",  
+                 old_version=True, device="cuda:0"):
+        '''
+            config_dir: path to the config directory
+            checkpoint_dir: path to the checkpoint directory
+            size: the image size of the facerender
+            preprocess: the preprocess method of the input image.
+                Choose from ['crop', 'extcrop', 'resize', 'full', 'extfull']
+            old_version: use the pth other than safetensor version
+            device: device to run the model on
+        '''
+        self.size = size
+        self.device = device
+        self.preprocess = preprocess
+        sadtalker_paths = init_path(
+            checkpoint_dir, config_dir, size, old_version, preprocess
+        )
+        
+        #init model
+        self.preprocess_model = CropAndExtract(sadtalker_paths, device)
+        self.audio_to_coeff = Audio2Coeff(sadtalker_paths,  device) 
+        self.animate_from_coeff = AnimateFromCoeff(sadtalker_paths, device)
+    
+    def create_temp_resize_image(self,image_source,source_image_flag):
+        ## create resized temp image
+        pic_name = os.path.splitext(os.path.split(image_source)[-1])[0] 
+        file_path=os.path.join(os.path.dirname(image_source),pic_name+'_videotemp.mp4')
+        if not os.path.isfile(image_source):
+            raise ValueError('image_source must be a valid path to video/image file')
+        elif image_source.split('.')[-1] in ['jpg', 'png', 'jpeg']:
+            
+            
+            img_temp=cv2.imread(image_source)
+            img_temp=resize_aspect_ratio(img_temp)
+            cv2.imwrite(image_source,img_temp)
+            print("Temp image created from image",image_source)
+            return image_source
+            
+        else:
+            
+            # loader for videos
+            video_stream = cv2.VideoCapture(image_source)
+            fps = video_stream.get(cv2.CAP_PROP_FPS)
+            while 1:
+                still_reading, frame = video_stream.read()
+                if not still_reading:
+                    video_stream.release()
+                    break
+                video_stream.release() 
+                break
+                ## resize the video
+                
+            full_img=resize_aspect_ratio(frame)
+            frame_h = full_img.shape[0]
+            frame_w = full_img.shape[1]
+            video_stream_2 = cv2.VideoCapture(image_source)
+            fps = video_stream_2.get(cv2.CAP_PROP_FPS)
+            out_tmp = cv2.VideoWriter(file_path, cv2.VideoWriter_fourcc(*'avc1'), fps, (frame_w, frame_h))
+            while 1:
+                still_reading, frame = video_stream_2.read()
+                if not still_reading:
+                    video_stream_2.release()
+                    break
+                frame=resize_aspect_ratio(frame)
+                out_tmp.write(frame)
+            print("Temp video created from video",file_path)
+            out_tmp.release()
+            return file_path
 
 class SadTalkerInfer():
     
@@ -65,7 +150,9 @@ class SadTalkerInfer():
         #crop image and extract 3dmm from image
         first_frame_dir = os.path.join(result_dir, 'first_frame_dir')
         os.makedirs(first_frame_dir, exist_ok=True)
-        
+        print("Started creating temp image/video")
+        image_source=self.create_temp_resize_image(image_source,source_image_flag=False)
+        print("done temp image/video ",image_source)
         print('3DMM Extraction for source image')
         first_coeff_path, crop_pic_path, crop_info =  self.preprocess_model.generate(
             image_source, first_frame_dir, self.preprocess, 
