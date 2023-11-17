@@ -69,6 +69,8 @@ class Preprocesser:
         x = eye_to_eye - np.flipud(eye_to_mouth) * [-1, 1]  # Addition of binocular difference and double mouth difference
         x /= np.hypot(*x)   # hypot函数计算直角三角形的斜边长，用斜边长对三角形两条直边做归一化
         x *= max(np.hypot(*eye_to_eye) * 2.0, np.hypot(*eye_to_mouth) * 1.8)    # 双眼差和眼嘴差，选较大的作为基准尺度
+        # scalling heuristically
+        x *= ((2* np.hypot( * eye_to_mouth)) / (1.8 *np.hypot( *eye_to_eye)))
         y = np.flipud(x) * [-1, 1]
         c = eye_avg + eye_to_mouth * 0.1
         quad = np.stack([c - x - y, c - x + y, c + x + y, c + x - y])   # 定义四边形，以面部基准位置为中心上下左右平移得到四个顶点
@@ -118,7 +120,7 @@ class Preprocesser:
         lx = max(min(quad[0], quad[2]), 0)
         ly = max(min(quad[1], quad[7]), 0)
         rx = min(max(quad[4], quad[6]), img.size[0])
-        ry = min(max(quad[3], quad[5]), img.size[0])
+        ry = min(max(quad[3], quad[5]), img.size[1])
 
         # Save aligned image.
         return rsize, crop, [lx, ly, rx, ry]
