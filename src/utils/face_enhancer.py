@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import torch 
 
 from gfpgan import GFPGANer
@@ -8,6 +9,12 @@ from tqdm import tqdm
 from src.utils.videoio import load_video_to_cv2
 
 import cv2
+
+GFPGAN_CKPT_PATH = os.path.join(
+    # path to the dir that contains checkpoint dir
+    str(Path(os.path.dirname(os.path.abspath(__file__))).parent.parent.parent),
+    "checkpoints"
+)
 
 
 class GeneratorWithLen(object):
@@ -91,7 +98,7 @@ def enhancer_generator_no_len(images, method='gfpgan', bg_upsampler='realesrgan'
         bg_upsampler = None
 
     # determine model paths
-    model_path = os.path.join('gfpgan/weights', model_name + '.pth')
+    model_path = os.path.join(GFPGAN_CKPT_PATH, model_name + '.pth')
     
     if not os.path.isfile(model_path):
         model_path = os.path.join('checkpoints', model_name + '.pth')
