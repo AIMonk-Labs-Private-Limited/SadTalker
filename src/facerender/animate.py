@@ -23,7 +23,7 @@ from pydub import AudioSegment
 from src.utils.face_enhancer import enhancer_generator_with_len, enhancer_list
 from src.utils.paste_pic import paste_pic
 from src.utils.videoio import save_video_with_watermark
-from src.bgremoval.demo.video_matting.custom.run import matting_list
+from src.bgremoval_package.demo.run import matting_list
 
 try:
     import webui  # in webui
