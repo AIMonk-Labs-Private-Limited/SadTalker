@@ -104,7 +104,7 @@ class SadTalkerInfer():
               video_as_source=False, ref_eyeblink=None, 
               ref_pose=None, pose_style=0, batch_size=FACERENDER_BATCH_SIZE, expression_scale=1, 
               input_yaw=None, input_pitch=None, input_roll=None, enhancer=False, 
-              background_enhancer=None, still=False,bgremoval=False):
+              background_enhancer=None, still=False,bgremoval=True):
         '''
         Args:
             driven_audio: path to the audio file
