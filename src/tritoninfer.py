@@ -104,7 +104,7 @@ class SadTalkerInfer():
               video_as_source=False, ref_eyeblink=None, 
               ref_pose=None, pose_style=0, batch_size=FACERENDER_BATCH_SIZE, expression_scale=1, 
               input_yaw=None, input_pitch=None, input_roll=None, enhancer=False, 
-              background_enhancer=None, still=False):
+              background_enhancer=None, still=False,bgremoval=True):
         '''
         Args:
             driven_audio: path to the audio file
@@ -122,6 +122,7 @@ class SadTalkerInfer():
             input_roll: the input roll degree of the user
             enhancer: whether to use the enhancer (if True gfpgan enhancer will be used)
             still: can crop back to the original videos for the full body aniamtion
+            bgremoval: if true , the output from sadtalker goes under a background removal model
         '''
         enhancer = "gfpgan" if enhancer else None
         #crop image and extract 3dmm from image
@@ -190,7 +191,7 @@ class SadTalkerInfer():
         )
         
         result = self.animate_from_coeff.generate(
-            data, result_dir, image_path, crop_info, 
+            data, result_dir, image_path, crop_info,bgremoval=bgremoval, 
             enhancer=enhancer, background_enhancer=background_enhancer, 
             preprocess=self.preprocess, img_size=self.size
         )

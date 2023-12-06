@@ -23,6 +23,7 @@ from pydub import AudioSegment
 from src.utils.face_enhancer import enhancer_generator_with_len, enhancer_list
 from src.utils.paste_pic import paste_pic
 from src.utils.videoio import save_video_with_watermark
+from src.bgremoval_package.demo.run import matting_list
 
 try:
     import webui  # in webui
@@ -154,7 +155,7 @@ class AnimateFromCoeff():
 
         return checkpoint['epoch']
 
-    def generate(self, x, video_save_dir, pic_path, crop_info, enhancer=None, background_enhancer=None, preprocess='crop', img_size=256):
+    def generate(self, x, video_save_dir, pic_path, crop_info, bgremoval=True, enhancer=None, background_enhancer=None, preprocess='crop', img_size=256):
 
         source_image=x['source_image'].type(torch.FloatTensor)
         source_semantics=x['source_semantics'].type(torch.FloatTensor)
@@ -245,16 +246,17 @@ class AnimateFromCoeff():
             av_path_enhancer = os.path.join(video_save_dir, video_name_enhancer) 
             return_path = av_path_enhancer
 
-            try:
-                enhanced_images_gen_with_len = enhancer_generator_with_len(full_video_path, method=enhancer, bg_upsampler=background_enhancer)
-                imageio.mimsave(enhanced_path, enhanced_images_gen_with_len, fps=float(25))
-            except:
-                enhanced_images_gen_with_len = enhancer_list(full_video_path, method=enhancer, bg_upsampler=background_enhancer)
-                imageio.mimsave(enhanced_path, enhanced_images_gen_with_len, fps=float(25))
             
-            save_video_with_watermark(enhanced_path, new_audio_path, av_path_enhancer, watermark= False)
-            print(f'The generated video is named {video_save_dir}/{video_name_enhancer}')
-            os.remove(enhanced_path)
+            enhanced_images_gen_with_len = enhancer_list(full_video_path, method=enhancer, bg_upsampler=background_enhancer)
+            if bgremoval != True:
+                imageio.mimsave(enhanced_path, enhanced_images_gen_with_len, fps=float(25))
+                save_video_with_watermark(enhanced_path, new_audio_path, av_path_enhancer, watermark= False)
+                print(f'The generated video is named {video_save_dir}/{video_name_enhancer}')
+                os.remove(enhanced_path)
+        if bgremoval:
+            output_path=os.path.join(video_save_dir,"matts")
+            matting_list(enhanced_images_gen_with_len,output_path)
+            return_path = output_path
 
         os.remove(path)
         os.remove(new_audio_path)
