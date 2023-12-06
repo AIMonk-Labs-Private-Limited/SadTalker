@@ -12,6 +12,15 @@ from pathlib import Path
 from src.bgremoval_package.src.models.modnet import MODNet
 
 
+#Check if GPU available or not
+GPU = True if torch.cuda.device_count() > 0 else False
+
+
+#Preparing path for pretrained checkpoint
+filepath = os.path.dirname(os.path.abspath(__file__))
+CKPT_FOLDER = Path(filepath).parent.parent.parent.parent
+PRETRAINED_CKPT = os.path.join(CKPT_FOLDER,"checkpoints/bgremoval/modnet_webcam_portrait_matting.ckpt")
+
 torch_transforms = transforms.Compose(
     [
         transforms.ToTensor(),
@@ -19,20 +28,18 @@ torch_transforms = transforms.Compose(
     ]
 )
 def load_model():
-    filepath = os.path.dirname(os.path.abspath(__file__))
-    ckpt_folder = Path(filepath).parent.parent.parent.parent
-    pretrained_ckpt = os.path.join(ckpt_folder,"checkpoints/bgremoval/modnet_webcam_portrait_matting.ckpt")
+    
     modnet = MODNet(backbone_pretrained=False)
     modnet = nn.DataParallel(modnet)
 
-    GPU = True if torch.cuda.device_count() > 0 else False
+    
     if GPU:
         print('Use GPU...')
         modnet = modnet.cuda()
-        modnet.load_state_dict(torch.load(pretrained_ckpt))
+        modnet.load_state_dict(torch.load(PRETRAINED_CKPT))
     else:
         print('Use CPU...')
-        modnet.load_state_dict(torch.load(pretrained_ckpt, map_location=torch.device('cpu')))
+        modnet.load_state_dict(torch.load(PRETRAINED_CKPT, map_location=torch.device('cpu')))
     modnet.eval()
     return modnet
 
